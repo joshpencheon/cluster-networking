@@ -13,6 +13,7 @@ The assumed configuration is a "router" host is connected to a 802.1Q-supporting
 
 Assuming VLAN ID 1 is the switch's default VLAN, we'll use VLID 2 for the internal network. Using `netplan`, we'll configure the interface to acquire an IP via DHCP from the WAN, and this will be untagged traffic. We'll create a separate virtual interface for the VLID 2 traffic on the same physical port.
 
+<img width="779" alt="802 1Q" src="https://github.com/joshpencheon/cluster-networking/assets/30904/5b009fed-21df-4ea9-acab-fc5412415a61">
 
 In `/etc/netplan/99-config.yaml`:
 
@@ -63,7 +64,7 @@ We also have to bind the DHCP server to an interface that already has an IP in t
 INTERFACESv4="vlan2"
 ```
 
-Note - we must refer to the actual device name here (see `sudo cat /proc/net/vlan/config`) rather than the label that netplan assigned (e.g. `vlan2@eth0`).
+_⚠️ Note - we must refer to the actual device name here (see `sudo cat /proc/net/vlan/config`) rather than the label that netplan assigned (e.g. `vlan2@eth0`)._
 
 Now, the client device can be configured for DHCP, and request a new lease. It should be possible to observe the request arriving on the router with by watching the service's logs: `journalctl -u isc-dhcp-server.service -b -f`.
 
