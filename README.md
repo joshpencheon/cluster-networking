@@ -199,6 +199,12 @@ To test out the start of the netbooting capability, power cycling with the SD ca
 # a DHCPREQUEST should arrive as per normal:
 journalctl -u isc-dhcp-server.service -b -f
 
-# then, boot files should be requested from the "next-server" via TFTP:
+# then, boot files should be requested via TFTP:
 sudo tcpdump -vv -i vlan2 port 69
+```
+
+In the output, we can see e.g. a request for `start4.elf` in a directory named for the client's mac address:
+
+```
+192.168.20.27.21979 > pi1.tftp: [udp sum ok] TFTP, length 58, RRQ "xx-xx-xx-xx-xx-xx/start4.elf" octet tsize 0 blksize 1024
 ```
