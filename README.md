@@ -158,6 +158,23 @@ We'll also update the DHCP subnet config in `/etc/dhcp/dhcpd.conf` to advertise 
 
 _Note that we're setting [the BOOTP extension option 66](https://www.rfc-editor.org/rfc/rfc2132.html#section-9) directly here, rather than the more generic `next-server` (which doesn't work with Raspberry Pis)._
 
+From the same device, we can use an `nmap` test script to send out a DHCP request onto our VLAN and see the BOOTP option in action:
+
+```
+sudo nmap -e vlan2 --script broadcast-dhcp-discover
+
+|   Response 1 of 1:
+|     IP Offered: 192.168.20.26
+|     DHCP Message Type: DHCPOFFER
+|     Server Identifier: 192.168.20.1
+|     IP Address Lease Time: 5m00s
+|     Subnet Mask: 255.255.255.0
+|     Router: 192.168.20.1
+|     Domain Name Server: 192.168.20.1
+|     Domain Name: cluster
+|_    TFTP Server Name: 192.168.20.1
+```
+
 ## Raspberry PI netboot config
 
 RPi4 support booting from the network, but need some EEPROM flags set. Assuming Ubuntu is being used:
