@@ -127,3 +127,23 @@ If a client is rebooted and a new DHCP lease acquired, BIND should then be used 
 ```
 journalctl -u named.service -b -f
 ```
+
+## TFTP
+
+When netbooting, the kernel can be delivered to the client via TFTP. We'll host a TFTP service on the "router":
+
+```
+sudo apt-get install tftpd-hpa
+```
+
+The default settings are probably fine, although they can be changed in `/etc/default/tftpd-hpa`.
+
+To test out, we can install the TFTP client on another machine, and retrieve a file placed in `/srv/tftp`:
+
+```
+$ sudo apt-get install tftp-hpa
+$ tftp 192.168.20.1
+tftp> get test.txt
+tftp> quit
+$ cat test.txt
+```
