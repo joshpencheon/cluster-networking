@@ -130,7 +130,7 @@ journalctl -u named.service -b -f
 
 ## TFTP
 
-When netbooting, the kernel can be delivered to the client via TFTP. We'll host a TFTP service on the "router":
+When netbooting, the boot files can be delivered to the client via TFTP. We'll host a TFTP service on the "router":
 
 ```
 sudo apt-get install tftpd-hpa
@@ -146,4 +146,40 @@ $ tftp 192.168.20.1
 tftp> get test.txt
 tftp> quit
 $ cat test.txt
+```
+
+We'll also update the DHCP subnet config in `/etc/dhcp/dhcpd.conf` to advertise this TFTP service as where clients can get boot config from:
+
+```diff
+  range 192.168.20.10 192.168.20.200;
++ next-server 192.168.20.1;
+  option routers 192.168.20.1;
+```
+
+## Raspberry PI netboot config
+
+RPi4 support booting from the network, but need some EEPROM flags set. Assuming Ubuntu is being used:
+
+```
+sudo apt-get install rpi-eeprom
+sudo -E rpi-eeprom-config --edit
+```
+
+Update `TFTP_PREFIX` so the mac address is included as a directory prefix (rather than the Pi's serial number), and set the `BOOT_ORDER` so that SD Card (`1`) then netboot (`2`) are tried (the argument is read right-to-left):
+
+```
+TFTP_PREFIX=2
+BOOT_ORDER=0x21
+```
+
+Then reboot to apply the changes, and ensure they stuck by running `rpi-eeprom-config` without arguments.
+
+To test out the start of the netbooting capability, power cycling with the SD card removed should trigger the netboot process, and can be monitored on the router:
+
+```
+# a DHCPREQUEST should arrive as per normal:
+journalctl -u isc-dhcp-server.service -b -f
+
+# then, boot files should be requested from the "next-server" via TFTP:
+sudo tcpdump -vv -i vlan2 port 69
 ```
