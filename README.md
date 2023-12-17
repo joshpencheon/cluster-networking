@@ -152,9 +152,11 @@ We'll also update the DHCP subnet config in `/etc/dhcp/dhcpd.conf` to advertise 
 
 ```diff
   range 192.168.20.10 192.168.20.200;
-+ next-server 192.168.20.1;
++ option tftp-server-name "192.168.20.1";
   option routers 192.168.20.1;
 ```
+
+_Note that we're setting [the BOOTP extension option 66](https://www.rfc-editor.org/rfc/rfc2132.html#section-9) directly here, rather than the more generic `next-server` (which doesn't work with Raspberry Pis)._
 
 ## Raspberry PI netboot config
 
