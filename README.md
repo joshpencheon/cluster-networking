@@ -208,3 +208,51 @@ In the output, we can see e.g. a request for `start4.elf` in a directory named f
 ```
 192.168.20.27.21979 > pi1.tftp: [udp sum ok] TFTP, length 58, RRQ "xx-xx-xx-xx-xx-xx/start4.elf" octet tsize 0 blksize 1024
 ```
+
+## Booting a kernel via TFTP
+
+Let's get those boot files available to be served via TFTP. We'll start with a fresh install:
+
+```
+wget https://cdimage.ubuntu.com/releases/22.04.3/release/ubuntu-22.04.3-preinstalled-server-arm64+raspi.img.xz
+xz -d ubuntu-22.04.3-preinstalled-server-arm64+raspi.img.xz
+```
+
+Then check the partitions:
+
+```
+fdisk -lu ubuntu-22.04.3-preinstalled-server-arm64+raspi.img
+
+Device                                              Boot  Start     End Sectors  Size Id Type
+ubuntu-22.04.3-preinstalled-server-arm64+raspi.img1 *      2048  526335  524288  256M  c W95 FAT32 (LBA)
+ubuntu-22.04.3-preinstalled-server-arm64+raspi.img2      526336 8320243 7793908  3.7G 83 Linux
+```
+
+Mount the boot partition via a loop device:
+
+```
+# get the next free device:
+sudo losetup -f
+
+# set up the loop device, using a calculated offset to get the first partition:
+sudo losetup -o $((2048*512)) /dev/loop11 ubuntu-22.04.3-preinstalled-server-arm64+raspi.img
+
+# mount it:
+sudo mount /dev/loop11 /mnt
+```
+
+Now we can copy the firmware necessary to boot into the TFTP area for our client device, identified by mac address:
+
+```
+sudo mkdir -p /srv/tftp/xx-xx-xx-xx-xx-xx
+sudo cp /mnt/* /srv/tftp/xx-xx-xx-xx-xx-xx/
+```
+
+Finally, clean up the mount and loop device:
+
+```
+sudo umount /mnt
+sudo losetup -d /dev/loop11
+```
+
+Power cycling our client device now should cause it to retrieve the necessary files via TFTP and boot the kernel. However, we've not yet made a root filesystem available.
