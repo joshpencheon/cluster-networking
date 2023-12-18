@@ -271,7 +271,12 @@ Create a location on the filesystem to serve, and populate it with the fresh ima
 sudo mkdir -p /srv/root/xx-xx-xx-xx-xx-xx
 sudo losetup -o $((526336*512)) /dev/loop11 ubuntu-22.04.3-preinstalled-server-arm64+raspi.img
 sudo mount /dev/loop11 /mnt
-sudo cp -r /mnt/* /srv/root/xx-xx-xx-xx-xx-xx/
+```
+
+We'll use rsync this time, to ensure we preserve all files' metadata:
+
+```
+sudo rsync -avxHAXS --numeric-ids --info=progress2 /mnt /srv/root/xx-xx-xx-xx-xx-xx
 ```
 
 ...again, cleaning up afterwards:
@@ -284,7 +289,7 @@ sudo losetup -d /dev/loop11
 We need to make just a single tweak, to remove the default filesystem table; for now, we're not going to mount `/boot/firmware` (as we got that via TFTP when we needed it), and `/` will be coming via NFS through a `cmdline.txt` setup:
 
 ```
-echo '' > /srv/root/xx-xx-xx-xx-xx-xx/etc/fstab
+echo '' | sudo tee /srv/root/xx-xx-xx-xx-xx-xx/etc/fstab
 ```
 
 Now, let's configure the NFS service to export this directory, by editing `/etc/exports` and adding the following:
