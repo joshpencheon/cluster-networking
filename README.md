@@ -256,3 +256,57 @@ sudo losetup -d /dev/loop11
 ```
 
 Power cycling our client device now should cause it to retrieve the necessary files via TFTP and boot the kernel. However, we've not yet made a root filesystem available.
+
+## Root Filesystem (via NFS)
+
+We now want to make accessible root filesystem. The eventual plan would be to access this via iSCSI, but that needs a custom kernel so we'll start off with NFS instead.
+
+```
+sudo apt-get install nfs-kernel-server
+```
+
+Create a location on the filesystem to serve, and populate it with the fresh image:
+
+```
+sudo mkdir -p /srv/root/xx-xx-xx-xx-xx-xx
+sudo losetup -o $((526336*512)) /dev/loop11 ubuntu-22.04.3-preinstalled-server-arm64+raspi.img
+sudo mount /dev/loop11 /mnt
+sudo cp -r /mnt/* /srv/root/xx-xx-xx-xx-xx-xx/
+```
+
+...again, cleaning up afterwards:
+
+```
+sudo umount /mnt
+sudo losetup -d /dev/loop11
+```
+
+We need to make just a single tweak, to remove the default filesystem table; for now, we're not going to mount `/boot/firmware` (as we got that via TFTP when we needed it), and `/` will be coming via NFS through a `cmdline.txt` setup:
+
+```
+echo '' > /srv/root/xx-xx-xx-xx-xx-xx/etc/fstab
+```
+
+Now, let's configure the NFS service to export this directory, by editing `/etc/exports` and adding the following:
+
+```
+/srv/root/xx-xx-xx-xx-xx-xx *(rw,sync,no_subtree_check)
+```
+
+The `*` means this is accessible to all hosts, which is alright for now. Apply the configuration with `sudo exportfs -a`.
+
+You can test this out by temporarily re-mounting via NFS:
+
+```
+sudo mount -r -o v3 192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx /mnt
+sudo umount /mnt
+```
+
+Now, let's tweak the initial `/srv/tftp/xx-xx-xx-xx-xx-xx/cmdline.txt` to load the root filesystem via NFS:
+
+```diff
+- console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=LABEL=writable rootfstype=ext4 rootwait fixrtc quiet splash
++ console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait fixrtc quiet splash
+```
+
+And we can give booting a go! During the initial boot `cloud-init` will run a bunch of setup, after which we should be able to log in.
