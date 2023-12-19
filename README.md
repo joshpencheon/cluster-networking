@@ -315,3 +315,11 @@ Now, let's tweak the initial `/srv/tftp/xx-xx-xx-xx-xx-xx/cmdline.txt` to load t
 ```
 
 And we can give booting a go! During the initial boot `cloud-init` will run a bunch of setup, after which we should be able to log in.
+
+
+## TODO
+
+* Serve entire `/boot` over NFS (`cloud-init` draws some `userdata` from there), symlink `/boot/firmware` back for TFTP.
+* Investigate static IPs + hostnames from DHCP, to avoid bootloader consuming an extra IP
+* unionFS of root filesystems?
+* iSCSI
