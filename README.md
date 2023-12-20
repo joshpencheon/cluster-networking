@@ -331,7 +331,7 @@ However, as we're now exposing the entire filesystem via NFS, we can't rely on t
 
 ```diff
 - console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait fixrtc quiet splash
-+ console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait ds=nocloud;s=file://boot/firmware/ fixrtc quiet splash
++ console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait ds=nocloud;s=file:///boot/firmware/ fixrtc quiet splash
 ```
 
 ## TODO
