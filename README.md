@@ -287,25 +287,36 @@ Now make a copy of it for our specific client to serve over NFS:
 sudo cp -a /root/filesystems/ubuntu-22.04.3 /srv/root/xx-xx-xx-xx-xx-xx
 ```
 
-We need to make just a couple of tweaks to it given it'll now be arriving via NFS. First, remove the default filesystem table:
+We need to make just a couple of tweaks to it given it'll now be arriving via NFS.
+
+Firstly, we'll re-establish the presence of the `/boot/firmware` directory (which initially gets served via TFTP), in order to allow for kernel updates and default `cloud-init` behaviours:
+
 ```
-echo '' | sudo tee /srv/root/xx-xx-xx-xx-xx-xx/etc/fstab
+sudo mount --bind /srv/tftp/xx-xx-xx-xx-xx-xx /srv/root/xx-xx-xx-xx-xx-xx/boot/firmware
 ```
-The filesystem will get mounted automatically by the kernel as it does a netboot. Secondly, to resurface the `/boot/firmware` directory that's conventionally on a separate partition, replacing the stub directory that was there before:
+
+Secondly, we'll replace the default filesystem table with one that'll persist this bind mount over subsequent reboots:
 ```
-cd /srv/root/xx-xx-xx-xx-xx-xx/boot
-sudo rm -r firmware/
-sudo ln -s /srv/tftp/xx-xx-xx-xx-xx-xx firmware
+cat << EOF | sudo tee /srv/root/xx-xx-xx-xx-xx-xx/etc/fstab
+/srv/tftp/xx-xx-xx-xx-xx-xx /srv/root/xx-xx-xx-xx-xx-xx/boot/firmware  none   bind   0   0
+EOF
 ```
-This will prevent issues later with `cloud-init`, and also allow for clients to update their own kernel etc during software updates.
 
 Now, let's configure the NFS service to export this directory, by editing `/etc/exports` and adding the following:
 
 ```
-/srv/root/xx-xx-xx-xx-xx-xx *(rw,sync,no_subtree_check)
+/srv/root/xx-xx-xx-xx-xx-xx *(rw,sync,no_subtree_check,no_root_squash,crossmnt)
 ```
 
-The `*` means this is accessible to all hosts, which is alright for now. Apply the configuration with `sudo exportfs -a`.
+In detail:
+* `*` means this is accessible to all hosts, which is alright for now
+* `rw` allows clients to write as well as read ;-)
+* `no_subtree_check` is for performance
+* `no_root_squash` ensures permissions continue to work in client's FS
+* `crossmnt` allows the content of the nested bind mount to be available automatically
+
+
+Apply the NFS configuration with `sudo exportfs -a`.
 
 You can test this out by temporarily re-mounting via NFS:
 
