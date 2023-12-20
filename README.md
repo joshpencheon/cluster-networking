@@ -265,18 +265,13 @@ We now want to make accessible root filesystem. The eventual plan would be to ac
 sudo apt-get install nfs-kernel-server
 ```
 
-Create a location on the filesystem to serve, and populate it with the fresh image:
+Extract the root filesystem:
 
 ```
-sudo mkdir -p /srv/root/xx-xx-xx-xx-xx-xx
 sudo losetup -o $((526336*512)) /dev/loop11 ubuntu-22.04.3-preinstalled-server-arm64+raspi.img
 sudo mount /dev/loop11 /mnt
-```
-
-We'll use rsync this time, to ensure we preserve all files' metadata:
-
-```
-sudo rsync -avxHAXS --numeric-ids --info=progress2 /mnt /srv/root/xx-xx-xx-xx-xx-xx
+sudo mkdir -p /root/filesystems
+sudo cp -a /mnt /root/filesystems/ubuntu-22.04.3
 ```
 
 ...again, cleaning up afterwards:
@@ -286,11 +281,23 @@ sudo umount /mnt
 sudo losetup -d /dev/loop11
 ```
 
-We need to make just a single tweak, to remove the default filesystem table; for now, we're not going to mount `/boot/firmware` (as we got that via TFTP when we needed it), and `/` will be coming via NFS through a `cmdline.txt` setup:
+Now make a copy of it for our specific client to serve over NFS:
 
+```
+sudo cp -a /root/filesystems/ubuntu-22.04.3 /srv/root/xx-xx-xx-xx-xx-xx
+```
+
+We need to make just a couple of tweaks to it given it'll now be arriving via NFS. First, remove the default filesystem table:
 ```
 echo '' | sudo tee /srv/root/xx-xx-xx-xx-xx-xx/etc/fstab
 ```
+The filesystem will get mounted automatically by the kernel as it does a netboot. Secondly, to resurface the `/boot/firmware` directory that's conventionally on a separate partition, replacing the stub directory that was there before:
+```
+cd /srv/root/xx-xx-xx-xx-xx-xx/boot
+sudo rm -r firmware/
+sudo ln -s /srv/tftp/xx-xx-xx-xx-xx-xx firmware
+```
+This will prevent issues later with `cloud-init`, and also allow for clients to update their own kernel etc during software updates.
 
 Now, let's configure the NFS service to export this directory, by editing `/etc/exports` and adding the following:
 
@@ -314,8 +321,18 @@ Now, let's tweak the initial `/srv/tftp/xx-xx-xx-xx-xx-xx/cmdline.txt` to load t
 + console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait fixrtc quiet splash
 ```
 
-And we can give booting a go! During the initial boot `cloud-init` will run a bunch of setup, after which we should be able to log in.
+## Cloud-init
 
+The client should now boot, and we _should_ be able to log in. Unfortunately, we won't be allowed to.
+
+This is because (in the case of Ubuntu 22.04) `cloud-init` is used to provision the OS on first boot, using the `NoCloud` provider. This looks for `user-data` configuration either in the root of specially-labelled partitions, or via command line arguments that were provided to the kernel. Ubuntu use the former method, but rather than labelling the `vfat` partition with the conventional `CIDATA` label it has custom configuration in `/etc/cloud/cloud.cfg.d/99-fake_cloud.cfg` to have `cloud-init` instead look for partitions with `LABEL=system-boot`. This would conventionally match the partition that gets mounted at `/boot/firmware`, where the various config files are indeed found.
+
+However, as we're now exposing the entire filesystem via NFS, we can't rely on this labelling mechanism. Instead, we'll need to tweak the kernel commandline again to point at where `cloud-init` config can be found:
+
+```diff
+- console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait fixrtc quiet splash
++ console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait ds=nocloud;s=file://boot/firmware/ fixrtc quiet splash
+```
 
 ## TODO
 
