@@ -364,3 +364,4 @@ Whilst this is apparently addressed in kernel version 6.0, that's newer than the
 * NFS access controls?
 * unionFS of root filesystems?
 * iSCSI
+* cluster WiFi via router
