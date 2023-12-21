@@ -244,8 +244,9 @@ sudo mount /dev/loop11 /mnt
 Now we can copy the firmware necessary to boot into the TFTP area for our client device, identified by mac address:
 
 ```
-sudo mkdir -p /srv/tftp/xx-xx-xx-xx-xx-xx
-sudo cp /mnt/* /srv/tftp/xx-xx-xx-xx-xx-xx/
+sudo mkdir -p /root/boot
+sudo cp -a /mnt /root/boot/ubuntu-22.04.3
+sudo cp -a /root/boot/ubuntu-22.04.3 /srv/tftp/xx-xx-xx-xx-xx-xx
 ```
 
 Finally, clean up the mount and loop device:
@@ -334,20 +335,30 @@ Now, let's tweak the initial `/srv/tftp/xx-xx-xx-xx-xx-xx/cmdline.txt` to load t
 
 ## Cloud-init
 
+_This section is a bit of wandering digression into trying to get the vanilla 22.04 LTS image booting; in reality, it'd make much more sense to prepare a tweaked image / cloud-init config_
+
 The client should now boot, and we _should_ be able to log in. Unfortunately, we won't be allowed to.
 
 This is because (in the case of Ubuntu 22.04) `cloud-init` is used to provision the OS on first boot, using the `NoCloud` provider. This looks for `user-data` configuration either in the root of specially-labelled partitions, or via command line arguments that were provided to the kernel. Ubuntu use the former method, but rather than labelling the `vfat` partition with the conventional `CIDATA` label it has custom configuration in `/etc/cloud/cloud.cfg.d/99-fake_cloud.cfg` to have `cloud-init` instead look for partitions with `LABEL=system-boot`. This would conventionally match the partition that gets mounted at `/boot/firmware`, where the various config files are indeed found.
 
-However, as we're now exposing the entire filesystem via NFS, we can't rely on this labelling mechanism. Instead, we'll need to tweak the kernel commandline again to point at where `cloud-init` config can be found:
+However, as we're now exposing the entire filesystem via NFS, we can't rely on this labelling mechanism. Instead, we could try tweaking the kernel commandline again to point at where `cloud-init` config can be found:
 
 ```diff
 - console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait fixrtc quiet splash
 + console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait ds=nocloud;s=file:///boot/firmware/ fixrtc quiet splash
 ```
 
+However, at this point we _still_ have problems. Although `cloud-init` now successfully sources all the required information, the `cloud-config.service` that applies many of the changes gets blocked. After much digging, we find that there are some bugs with AppArmor and having an NFS filesystem, where programs accessing files have unpermitted network access attributed to them. This was observed e.g. with `man`, and also Snaps had problems, meaning the prerequisite `snapd.seeded.service` gets stuck waiting on `snapd.service`, blocking others.
+
+Whilst this is apparently addressed in kernel version 6.0, that's newer than the 22.04 LTS that we're currently using. So for now, we'll just disable AppArmor (!): 
+
+```
+- console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait ds=nocloud;s=file:///boot/firmware/ fixrtc quiet splash
++ console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait ds=nocloud;s=file:///boot/firmware/ fixrtc quiet splash apparmor=0
+```
+
 ## TODO
 
-* Serve entire `/boot` over NFS (`cloud-init` draws some `userdata` from there), symlink `/boot/firmware` back for TFTP.
 * Investigate static IPs + hostnames from DHCP, to avoid bootloader consuming an extra IP
 * unionFS of root filesystems?
 * iSCSI
