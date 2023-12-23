@@ -357,6 +357,91 @@ Whilst this is apparently addressed in kernel version 6.0, that's newer than the
 + console=serial0,115200 dwc_otg.lpm_enable=0 console=tty1 root=/dev/nfs nfsroot=192.168.20.1:/srv/root/xx-xx-xx-xx-xx-xx rw rootwait ds=nocloud;s=file:///boot/firmware/ fixrtc quiet splash apparmor=0
 ```
 
+## Adding Wi-Fi
+
+We can use the Wi-Fi antenna in the router RPi to servce as a dedicated wireless access point for the cluster's VLAN. First, install the necessary package:
+
+```
+sudo apt-get install hostapd
+```
+
+Then add some configuration to `/etc/hostapd/hostapd.conf`:
+
+```
+interface=wlan0
+bridge=br0
+
+# 2.4 GHz:
+hw_mode=b
+channel=1
+macaddr_acl=0
+auth_algs=1
+country_code=GB
+driver=nl80211
+ignore_broadcast_ssid=0
+
+# Only support WPA2 with AES:
+wpa=2
+wpa_key_mgmt=WPA-PSK
+wpa_pairwise=CCMP
+
+ssid=YourNetworkName
+wpa_passphrase=YourNetworkPassphrase
+```
+
+We'll need to point at this configuration, by uncommenting the following in `/etc/default/hostapd`:
+
+```
+DAEMON_CONF="/etc/hostapd/hostapd.conf"
+```
+
+We can now unmask (I think it is masked by default to ensure you configure radio settings, perhaps?), enable and start the service:
+
+```
+sudo systemctl unmask hostapd.service
+sudo systemctl enable hostapd.service
+sudo systemctl start hostapd.service
+```
+
+At this point, a device should be able to see the network, but not get a proper connection to it. We'll need to start off by properly bridging the WLAN interface with our VLAN - using `netplan`, we'll create a bridge that inherits our former VLAN config. In `/etc/netplan/99-config.yaml`:
+
+```
+network:
+    ethernets:
+        eth0:
+            dhcp4: true
+            optional: true
+        wlan0:
+            dhcp4: false
+    vlans:
+        vlan2:
+            id: 2
+            link: eth0
+    bridges:
+        br0:
+            interfaces:
+            - wlan0
+            - vlan2
+            addresses:
+            - 192.168.20.1/24
+    version: 2
+```
+
+After this configuration has been applied via `netplan`, we can update our `iptables` rules. This is most easily done just by editing `/etc/iptables/rules.v4` and then using `iptables-restore` to flush out the old tables and apply the new ones. We'll update the incoming and outgoing rules to refer to `br0` instead of `vlan2@eth0`:
+
+```
+-A FORWARD -i br0 -o eth0 -j ACCEPT
+-A FORWARD -i eth0 -o br0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+```
+
+Finally, we'll need to correct our DHCP configuration to have that listen on the bridged interface instead. In `/etc/default/isc-dhcp-server`:
+
+```
+INTERFACESv4="br0"
+```
+
+Once the DHCP service has been restarted, a device connecting to the new Wi-Fi network should receive an IP address from the `192.168.20.0/24` range (and show up in `dhcp-lease-list`). Be warned that the RPi's radio isn't the fastest by any means.
+
 ## TODO
 
 * Kernel updates
@@ -364,4 +449,3 @@ Whilst this is apparently addressed in kernel version 6.0, that's newer than the
 * NFS access controls?
 * unionFS of root filesystems?
 * iSCSI
-* cluster WiFi via router
