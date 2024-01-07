@@ -449,3 +449,10 @@ Once the DHCP service has been restarted, a device connecting to the new Wi-Fi n
 * NFS access controls?
 * unionFS of root filesystems?
 * iSCSI
+
+## Project Ideas
+
+* k3s
+* kamal
+* ceph
+* litestream / rqlite
