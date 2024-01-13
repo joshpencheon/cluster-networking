@@ -449,6 +449,9 @@ Once the DHCP service has been restarted, a device connecting to the new Wi-Fi n
 * NFS access controls?
 * unionFS of root filesystems?
 * iSCSI
+* Pi5 NVMe setup
+* Ansible
+  
 
 ## Project Ideas
 
@@ -456,3 +459,4 @@ Once the DHCP service has been restarted, a device connecting to the new Wi-Fi n
 * kamal
 * ceph
 * litestream / rqlite
+* time machine target
