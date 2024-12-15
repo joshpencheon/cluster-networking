@@ -13,7 +13,20 @@ The assumed configuration is a "router" host is connected to a 802.1Q-supporting
 
 Assuming VLAN ID 1 is the switch's default VLAN, we'll use VLID 2 for the internal network. Using `netplan`, we'll configure the interface to acquire an IP via DHCP from the WAN, and this will be untagged traffic. We'll create a separate virtual interface for the VLID 2 traffic on the same physical port.
 
-<img width="779" alt="802 1Q" src="https://github.com/joshpencheon/cluster-networking/assets/30904/5b009fed-21df-4ea9-acab-fc5412415a61">
+<details>
+  <summary>Screenshot of GS308E settings</summary>
+
+  <img width="779" alt="802 1Q" src="https://github.com/joshpencheon/cluster-networking/assets/30904/5b009fed-21df-4ea9-acab-fc5412415a61">
+</details>
+
+<details>
+  <summary>Screenshots of GS308EPP settings</summary>
+
+  <img width="517" alt="Screenshot 2024-12-15 at 13 56 05" src="https://github.com/user-attachments/assets/f6741594-c427-4120-9dbe-bdb855277ea7" />
+  <img width="518" alt="Screenshot 2024-12-15 at 13 53 43" src="https://github.com/user-attachments/assets/d8b28824-8d62-49d4-967f-0ab795949182" />
+</details>
+
+-----
 
 In `/etc/netplan/99-config.yaml`:
 
