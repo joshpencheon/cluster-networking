@@ -104,13 +104,13 @@ sudo iptables -A FORWARD -o vlan2@eth0 -i eth0 -m state --state RELATED,ESTABLIS
 ...and then enable NAT:
 
 ```
-sudo iptables -A POSTROUTING -t nat -i vlan2@eth0 -o eth0 -j MASQUERADE
+sudo iptables -A POSTROUTING -t nat -o eth0 -j MASQUERADE
 ```
 
 We'll then need to ensure these rules survive a reboot:
 
 ```
-sudo iptables-save > /etc/iptables/rules.v4
+sudo iptables-save | sudo tee /etc/iptables/rules.v4
 ```
 
 ## DNS
