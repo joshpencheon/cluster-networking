@@ -149,7 +149,13 @@ When netbooting, the boot files can be delivered to the client via TFTP. We'll h
 sudo apt-get install tftpd-hpa
 ```
 
-The default settings are probably fine, although they can be changed in `/etc/default/tftpd-hpa`.
+The default settings are probably fine, although they can be changed in `/etc/default/tftpd-hpa`. One thing worth changing is the interface to listen on; this defaults to all interfaces, port `:69`. The `TFTP_ADDRESS` configuration can be limited to e.g. single IPv4 address, and then this verified via `ss`:
+
+```bash
+sudo ss -pul 'sport = :69'
+# State      Recv-Q     Send-Q         Local Address:Port           Peer Address:Port     Process
+# UNCONN     0          0               192.168.20.1:tftp                0.0.0.0:*         users:(("in.tftpd",pid=3139,fd=4))
+```
 
 To test out, we can install the TFTP client on another machine, and retrieve a file placed in `/srv/tftp`:
 
